@@ -23,26 +23,27 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URL;
+import java.nio.file.Path;
 
 /**
  * Disk based cache.
  */
 public class DiskFeedInfoCache implements FeedFetcherCache {
 
-    protected String cachePath = null;
+    protected final Path cachePath;
 
-    public DiskFeedInfoCache(final String cachePath) {
+    public DiskFeedInfoCache(final Path cachePath) {
         this.cachePath = cachePath;
     }
 
     @Override
     public SyndFeedInfo getFeedInfo(final URL url) {
         SyndFeedInfo info = null;
-        final String fileName = cachePath + File.separator + "feed_" + replaceNonAlphanumeric(url.toString(), '_').trim();
+        final Path fileName = cachePath.resolve("feed_" + replaceNonAlphanumeric(url.toString(), '_').trim());
         FileInputStream fis = null;
         ObjectInputStream ois = null;
         try {
-            fis = new FileInputStream(fileName);
+            fis = new FileInputStream(fileName.toFile());
             ois = new ObjectInputStream(fis);
             info = (SyndFeedInfo) ois.readObject();
         } catch (final FileNotFoundException e) {
@@ -72,10 +73,10 @@ public class DiskFeedInfoCache implements FeedFetcherCache {
 
     @Override
     public void setFeedInfo(final URL url, final SyndFeedInfo feedInfo) {
-        final String fileName = cachePath + File.separator + "feed_" + replaceNonAlphanumeric(url.toString(), '_').trim();
+        final Path fileName = cachePath.resolve("feed_" + replaceNonAlphanumeric(url.toString(), '_').trim());
         FileOutputStream fos;
         try {
-            fos = new FileOutputStream(fileName);
+            fos = new FileOutputStream(fileName.toFile());
             final ObjectOutputStream oos = new ObjectOutputStream(fos);
             oos.writeObject(feedInfo);
             fos.flush();
@@ -104,16 +105,12 @@ public class DiskFeedInfoCache implements FeedFetcherCache {
      */
     @Override
     public synchronized void clear() {
-        final File file = new File(cachePath);
+        final File file = cachePath.toFile();
         // only do the delete if the directory exists
         if (file.exists() && file.canWrite()) {
             // make the directory empty
-            final String[] files = file.list();
-            final int len = files.length;
-            for (int i = 0; i < len; i++) {
-                final File deleteMe = new File(cachePath + File.separator + files[i]);
+            for (File deleteMe : file.listFiles())
                 deleteMe.delete();
-            }
 
             // don't delete the cache directory
         }
@@ -123,14 +120,14 @@ public class DiskFeedInfoCache implements FeedFetcherCache {
     public SyndFeedInfo remove(final URL url) {
 
         SyndFeedInfo info = null;
-        final String fileName = cachePath + File.separator + "feed_" + replaceNonAlphanumeric(url.toString(), '_').trim();
+        final Path fileName = cachePath.resolve("feed_" + replaceNonAlphanumeric(url.toString(), '_').trim());
         FileInputStream fis = null;
         ObjectInputStream ois = null;
         boolean consumed = false;
 
         try {
 
-            fis = new FileInputStream(fileName);
+            fis = new FileInputStream(fileName.toFile());
             ois = new ObjectInputStream(fis);
             info = (SyndFeedInfo) ois.readObject();
             consumed = true;
@@ -157,7 +154,7 @@ public class DiskFeedInfoCache implements FeedFetcherCache {
                 }
             }
             if (consumed) {
-                final File file = new File(fileName);
+                final File file = fileName.toFile();
                 if (file.exists()) {
                     file.delete();
                 }
@@ -165,6 +162,5 @@ public class DiskFeedInfoCache implements FeedFetcherCache {
         }
 
         return info;
-
     }
 }
